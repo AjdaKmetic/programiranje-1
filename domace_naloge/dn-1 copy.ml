@@ -21,16 +21,48 @@
  zaporedja in vrne seznam vseh členov, dokler zaporedje ne doseže $1$.
 [*----------------------------------------------------------------------------*)
 
-let collatz n =
-  if n <= 0 then invalid_arg "Collatzovo zaporedje je definirano le za pozitivna cela števila"
-  else
-    let rec collatz' seznam clen =
-      match clen with
-      | 1 -> List.rev (1 :: seznam)
-      | x when x mod 2 = 0 -> collatz' (x :: seznam) (x / 2)
-      | x -> collatz' (x :: seznam) (3 * x + 1)
+(* Mogoče ne rabiš preverjati ali je n pozitiven:
+
+let rec collatz = function
+  | 1 -> [1]
+  | n -> 
+    if n > 1 then 
+      if n mod 2 = 0 then 
+        n :: collatz (n / 2)
+      else 
+        n :: collatz (3 * n + 1)
+    else []
+*)
+
+(* Repno rekurzivna funkcija *)
+
+(*
+
+let collatz clen =
+  let rec collatz' seznam clen =
+    match clen with
+    | 1 -> List.rev (1 :: seznam)
+    | n -> 
+      if n > 1 then 
+        if n mod 2 = 0 then 
+          collatz' (n :: seznam) (n / 2)
+        else 
+          collatz' (n :: seznam) (3 * n + 1)
+      else invalid_arg "Collatzovo zaporedje je definirano le za pozitivna cela števila" (* seznam *)
     in
-    collatz' [] n
+    collatz' [] clen
+
+*)
+
+let collatz clen =
+  let rec collatz' seznam clen =
+    match clen with
+    | n when n <= 0 -> invalid_arg "Collatzovo zaporedje je definirano le za pozitivna cela števila"
+    | 1 -> List.rev (1 :: seznam)
+    | n when n mod 2 = 0 -> collatz' (n :: seznam) (n / 2)
+    | n -> collatz' (n :: seznam) (3 * n + 1)
+    in
+    collatz' [] clen
 
 let primer_ogrevanje_1 = collatz 1024
 (* val primer_ogrevanje_1 : int list =
@@ -56,6 +88,14 @@ let primer_ogrevanje_2 = collatz 27
  dano funkcijo in seznam vrne podseznam vseh elementov, ki so fiksne točke.
 [*----------------------------------------------------------------------------*)
 
+(*
+
+let fiksne_tocke f tocke = 
+  let seznam = List.filter (fun x -> x = (f x)) tocke in
+  List.map f seznam
+
+*)
+
 let fiksne_tocke f tocke = 
   List.filter_map (fun x -> if x = (f x) then Some (f x) else None) tocke
 
@@ -77,11 +117,12 @@ let primer_ogrevanje_4 = fiksne_tocke List.rev [[3]; [1; 4; 1]; [5; 9; 2; 6]; [5
 
 let sep_concat locilo sez = 
   let rec sep_concat' acc sez =
-    match sez with
-    | [] -> List.rev (locilo :: acc)
-    | x :: xs -> sep_concat' (List.rev_append x (locilo :: acc)) xs
+  match sez with
+  | [] -> [locilo] :: (List.rev acc)
+  | x :: xs -> sep_concat' ([locilo] :: x :: acc) xs
   in
-  sep_concat' [] sez
+  let sez_z_locili = sep_concat' [] sez in
+  List.flatten sez_z_locili
 
 let primer_ogrevanje_5 = sep_concat 42 [[1; 2; 3]; [4; 5]; []; [6]]
 (* val primer_ogrevanje_5 : int list = [42; 1; 2; 3; 42; 4; 5; 42; 42; 6; 42] *)
@@ -102,13 +143,13 @@ let primer_ogrevanje_6 = sep_concat 42 []
 
 let partition k sez = 
   let rec partition' dolzina podseznam podseznami preostanek =
-    match preostanek with
-    | [] -> List.rev ((List.rev podseznam) :: podseznami)
-    | x :: xs ->
-      if dolzina < k then
-        partition' (dolzina + 1) (x :: podseznam) podseznami xs
-      else 
-        partition' 1 [x] ((List.rev podseznam) :: podseznami) xs
+  match preostanek with
+  | [] -> List.rev ((List.rev podseznam) :: podseznami)
+  | x :: xs ->
+    if dolzina < k then
+      partition' (dolzina + 1) (x :: podseznam) podseznami xs
+    else 
+      partition' 1 [x] ((List.rev podseznam) :: podseznami) xs
   in
   partition' 0 [] [] sez
 
@@ -257,9 +298,37 @@ let permutacija_2 = [3; 9; 1; 7; 5; 4; 6; 8; 2; 0]
 
  Predpostavite lahko, da sta seznama enakih dolžin.
 [*----------------------------------------------------------------------------*)
+(*
 
-let kompozitum p q =
-  List.map (fun x -> List.nth p x) q
+let poisci_vrednost index sez = 
+  let sez_parov = List.mapi (fun i x -> (i, x)) sez in
+  let par = List.filter (fun (i, x) -> i = index) sez_parov in
+  match par with
+  | [] -> None
+  | [(_, x)] -> Some x
+  | _ -> None
+
+let kompozitum per1 per2 = 
+  let rec aux kom per1 =
+  match per1 with
+  | [] -> List.rev kom
+  | x :: xs -> 
+    let vrednost = poisci_vrednost x per2 in
+    match vrednost with
+    | Some v -> aux (v :: kom) xs
+    | None -> failwith "Neveljaven indeks"
+  in
+  aux [] per1
+
+*)
+
+let kompozitum p q = 
+  let rec aux kom q_list =
+  match q_list with
+  | [] -> List.rev kom
+  | x :: xs -> aux ((List.nth p x) :: kom) xs
+  in
+  aux [] q
 
 let primer_permutacije_1 = kompozitum permutacija_1 permutacija_1
 (* val primer_permutacije_1 : int list = [0; 1; 2; 3; 4; 5] *)
@@ -325,6 +394,24 @@ let cikli p : int list list =
       cikli' (index + 1) novi_obiskani (nov_cikel :: cikli)
   in
   cikli' 0 IntSet.empty [] 
+
+(* Poglej, kako bi obiskani nadomestila z množico.
+let cikli p =
+  let rec cikli' index obiskani cikli =
+    if index = List.length p then 
+      (* pademo iz permutacije *)
+      List.rev cikli
+    else if List.mem index obiskani then
+      (* element smo že porabili oz. je že v enem ciklu *)
+      cikli' (index + 1) obiskani cikli
+    else
+      (* nov cikel *)
+      let nov_cikel = zgradi_cikel p index [] in
+      let novi_obiskani = List.rev_append nov_cikel obiskani in
+      cikli' (index + 1) novi_obiskani (nov_cikel :: cikli)
+  in
+  cikli' 0 [] []
+*)
 
 let primer_permutacije_6 = cikli permutacija_1
 (* val primer_permutacije_6 : int list list = [[0; 5]; [1; 3]; [2]; [4]] *)
@@ -395,7 +482,7 @@ let cikel_v_transpozicije cikel =
   match cikel with
   | [] -> failwith "Cikel je prazen"
   | prvi_el :: rep ->
-      List.map (fun x -> (prvi_el, x)) rep
+      List.rev (List.map (fun x -> (prvi_el, x)) rep)
 
 let v_transpozicije p = 
   let rec aux transpozicije cikli =
@@ -403,7 +490,7 @@ let v_transpozicije p =
   | [] -> List.rev transpozicije
   | cikel :: xs -> 
     let transpozicija = cikel_v_transpozicije cikel in
-    aux (List.append transpozicija transpozicije) xs
+    aux (List.rev_append transpozicija transpozicije) xs
   in
   let cikli = cikli p in
   aux [] cikli
