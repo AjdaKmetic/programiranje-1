@@ -52,6 +52,10 @@ module Nat_int : NAT = struct
 
 end
 
+let pet = Nat_int.of_int 5
+let deset = Nat_int.of_int 10
+let petnajs =  Nat_int.( pet + deset ) (* tole ne vem ali je pravilno ali ne, lahko da se + kliče drugače *)
+
 (*----------------------------------------------------------------------------*
  Napišite implementacijo `NAT`, ki temelji na [Peanovih
  aksiomih](https://en.wikipedia.org/wiki/Peano_axioms). Osnovni tip modula
@@ -61,12 +65,43 @@ end
  rekurzijo na `k` in `l`, kjer je osnoven primer `Zero = Zero`.
 [*----------------------------------------------------------------------------*)
 
-module Nat_peano : NAT = struct
+module Nat_peano = struct
 
-  type t = unit (* To morate spremeniti! *)
-  let eq x y = failwith "later"
-  let zero = () (* To morate spremeniti! *)
-  (* Dodajte manjkajoče! *)
+  type t = 
+  | Nic
+  | Naslednik of t
+  let zero = Nic
+  let one = Naslednik Nic
+  
+    let rec eq m n = 
+      match (m, n) with
+      | Nic, Nic -> true
+      | Nic, _ | _, Nic -> false
+      | Naslednik m', Naslednik n' -> eq m' n'
+
+    let rec ( + ) m n =
+      match m with
+      | Nic -> n
+      | Naslednik m' -> Naslednik (m' + n) (* vredu bi bilo tudi m' + (Naslednik n) *)
+
+    let rec ( - ) m n =
+      match (m, n) with
+      | m, Nic -> m
+      | Naslednik m', Naslednik n' -> m' - n'
+      | Nic, _ -> Nic
+
+    let rec ( * ) m n =
+      match m with
+      | Nic -> Nic
+      | Naslednik m' -> n + (m' * n)
+
+    let rec to_int = function
+      | Nic -> 0
+      | Naslednik n' -> Int.add 1 (to_int n')
+
+    let rec of_int = function
+      | 0 -> Nic
+      | n -> Naslednik (of_int (Int.sub n 1))
 
 end
 
@@ -92,8 +127,15 @@ module type CALC = sig
 end
 
 module Nat_calculations (N: NAT) : CALC with type t := N.t = struct
-  let factorial _ = (* To morate spremeniti! *)
-    N.zero
+  let rec factorial n =
+    if N.eq n N.zero then N.one
+    else N.( * )
+          n
+          (factorial (
+            N.( - )
+            n
+            N.one
+          ))
 
   let sum_100 = (* To morate spremeniti! *)
     N.zero
@@ -110,7 +152,13 @@ end
 module Nat_int_calc = Nat_calculations (Nat_int)
 module Nat_peano_calc = Nat_calculations (Nat_peano)
 
+let fact_5_int = 
+  Nat_int_calc.factorial (Nat_int.of_int 5) |> Nat_int.to_int
 
+let fact_5_peano =
+  Nat_peano.to_int (
+    Nat_peano_calc.factorial (Nat_peano.of_int 5)
+  )
 (* val sum_100_int : int = 5050 *)
 (* val sum_100_peano : int = 5050 *)
 (* val fact_5_int : int = 120 *)
@@ -126,15 +174,16 @@ module Nat_peano_calc = Nat_calculations (Nat_peano)
  Pretvorjanje iz in v `int` pa definirajte poljubno.
 [*----------------------------------------------------------------------------*)
 
-module Nat_pair (A: NAT) (B: NAT) : NAT = struct
+(* module Nat_pair (A: NAT) (B: NAT) : NAT = struct 
   type t = A.t * B.t
 
   let eq x y = failwith "later"
   let zero = (A.zero, B.zero)
   (* Dodajte manjkajoče! *)
-end
+end 
 
-module Nat_pair_int_peano = Nat_pair (Nat_int) (Nat_peano)
+module Nat_pair_int_peano = Nat_pair (Nat_int) (Nat_peano) *)
+
 (* Poskusite narediti nekaj testnih računov. *)
 
 (*----------------------------------------------------------------------------*
